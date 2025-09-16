@@ -1,4 +1,2 @@
 streamlit
 python-chess
-cairosvg
-Pillow
