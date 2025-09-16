@@ -1,16 +1,13 @@
 import streamlit as st
 import chess
 import chess.svg
-from PIL import Image
 import base64
-import io
 from chess_engine import ChessGame
 
-def render_svg(svg_html):
-    # Convert SVG to PNG for Streamlit display
-    import cairosvg
-    png_data = cairosvg.svg2png(bytestring=svg_html.encode('utf-8'))
-    return Image.open(io.BytesIO(png_data))
+def render_svg(svg):
+    b64 = base64.b64encode(svg.encode('utf-8')).decode()
+    html = f'<img src="data:image/svg+xml;base64,{b64}" style="width: 400px"/>'
+    st.markdown(html, unsafe_allow_html=True)
 
 def square_name(row, col):
     files = 'abcdefgh'
@@ -35,15 +32,13 @@ game = st.session_state.game
 col1, col2 = st.columns([2, 1])
 
 with col1:
+    # Render the SVG chess board
     svg_board = chess.svg.board(game.board, size=400,
-                                lastmove=chess.Move.from_uci(st.session_state.history[-1]) if st.session_state.history else None,
-                                squares=[])
-    board_img = render_svg(svg_board)
-    st.image(board_img)
+                                lastmove=chess.Move.from_uci(st.session_state.history[-1]) if st.session_state.history else None)
+    render_svg(svg_board)
 
     # Render clickable squares using Streamlit buttons in an 8x8 grid
     st.write("Click on a square to select a piece or move.")
-    grid_cols = st.columns(8)
     for row in range(8):
         cols = st.columns(8)
         for col in range(8):
