@@ -32,27 +32,29 @@ with col2:
     mode = st.radio("Mode", ["Human vs Human", "Human vs AI"])
     st.write("Legal moves:", ", ".join(game.get_legal_moves()))
     move_input = st.text_input("Enter your move (UCI, e.g. e2e4):", key="move_input")
-    if st.button("Make Move"):
+    make_move = st.button("Make Move")
+    ai_move = st.button("AI Move") if mode == "Human vs AI" and not game.is_game_over() and len(game.get_legal_moves()) > 0 else False
+    restart = st.button("Restart Game")
+
+    # Process moves without rerun
+    if make_move and move_input:
         success, explanation = game.push_move(move_input.strip())
         if success:
             st.session_state.history.append(move_input.strip())
             st.session_state.move_explanation = explanation
-            st.experimental_rerun()
         else:
             st.warning(explanation)
-    if mode == "Human vs AI" and not game.is_game_over() and len(game.get_legal_moves()) > 0:
-        if st.button("AI Move"):
-            move, explanation = game.ai_move(level='random')
-            st.session_state.history.append(move)
-            st.session_state.move_explanation = explanation
-            st.experimental_rerun()
-    st.write("#### Last Move Explanation:")
-    st.info(st.session_state.move_explanation)
-    if st.button("Restart Game"):
+    if ai_move:
+        move, explanation = game.ai_move(level='random')
+        st.session_state.history.append(move)
+        st.session_state.move_explanation = explanation
+    if restart:
         st.session_state.game = ChessGame()
         st.session_state.history = []
         st.session_state.move_explanation = ""
-        st.experimental_rerun()
+
+    st.write("#### Last Move Explanation:")
+    st.info(st.session_state.move_explanation)
 
 st.sidebar.markdown("## Move History")
 st.sidebar.write(st.session_state.history)
