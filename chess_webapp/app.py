@@ -9,15 +9,11 @@ def render_svg(svg):
     html = f'<img src="data:image/svg+xml;base64,{b64}" style="width: 400px; border:2px solid #444; border-radius:10px;"/>'
     st.markdown(html, unsafe_allow_html=True)
 
-def square_name(row, col):
-    files = 'abcdefgh'
-    ranks = '87654321'
-    return files[col] + ranks[row]
-
 st.set_page_config(page_title="Interactive Chess App", layout="centered")
 st.title("♟️ Interactive Chess App")
+
 with st.expander("How to Play", expanded=False):
-    st.markdown("Click a piece, then its destination square to make a move. Play vs human or AI. Each move shows a brief explanation.")
+    st.markdown("Select your move from the dropdown or enter it manually (UCI format, e.g., e2e4).")
 
 if "game" not in st.session_state:
     st.session_state.game = ChessGame()
@@ -25,57 +21,39 @@ if "history" not in st.session_state:
     st.session_state.history = []
 if "move_explanation" not in st.session_state:
     st.session_state.move_explanation = ""
-if "selected_square" not in st.session_state:
-    st.session_state.selected_square = None
 
 game = st.session_state.game
 
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    # Highlight last move if available
     lastmove = chess.Move.from_uci(st.session_state.history[-1]) if st.session_state.history else None
     svg_board = chess.svg.board(game.board, size=400, lastmove=lastmove)
     render_svg(svg_board)
 
-    # Clickable squares (hidden, but used for selection logic)
-    for row in range(8):
-        cols = st.columns(8)
-        for col in range(8):
-            sq = square_name(row, col)
-            btn_key = f"{row}_{col}_{st.session_state.selected_square}"
-            if cols[col].button(" ", key=btn_key, help=sq, use_container_width=True):
-                if st.session_state.selected_square is None:
-                    # First click: select piece if it's the right color
-                    piece = game.board.piece_at(chess.parse_square(sq))
-                    if piece and ((piece.color and game.board.turn) or (not piece.color and not game.board.turn)):
-                        st.session_state.selected_square = sq
-                else:
-                    # Second click: attempt move
-                    move_uci = st.session_state.selected_square + sq
-                    legal_moves = [m for m in game.get_legal_moves()]
-                    # Try normal move
-                    if move_uci in legal_moves:
-                        success, explanation = game.push_move(move_uci)
-                        if success:
-                            st.session_state.history.append(move_uci)
-                            st.session_state.move_explanation = explanation
-                    # Try promotion to queen
-                    elif move_uci + 'q' in legal_moves:
-                        success, explanation = game.push_move(move_uci + 'q')
-                        if success:
-                            st.session_state.history.append(move_uci + 'q')
-                            st.session_state.move_explanation = explanation
-                    else:
-                        st.warning("Illegal move.")
-                    st.session_state.selected_square = None
+    st.write("#### Move Selection")
+    legal_moves = [move.uci() for move in game.board.legal_moves]
+    move_input = st.selectbox("Select your move", [""] + legal_moves)
+    manual_move = st.text_input("Or enter move (UCI):", "")
+
+    if st.button("Make Move"):
+        selected_move = manual_move.strip() if manual_move.strip() else move_input
+        if selected_move and selected_move in legal_moves:
+            success, explanation = game.push_move(selected_move)
+            if success:
+                st.session_state.history.append(selected_move)
+                st.session_state.move_explanation = explanation
+            else:
+                st.warning(explanation)
+        else:
+            st.warning("Please select or enter a valid legal move.")
 
     if game.is_game_over():
         st.markdown(f"### Game Over: {game.get_result()}")
 
 with col2:
     mode = st.radio("Mode", ["Human vs Human", "Human vs AI"])
-    if mode == "Human vs AI" and not game.is_game_over() and len(game.get_legal_moves()) > 0:
+    if mode == "Human vs AI" and not game.is_game_over() and len(legal_moves) > 0:
         if st.button("AI Move"):
             move, explanation = game.ai_move(level='random')
             st.session_state.history.append(move)
@@ -84,7 +62,6 @@ with col2:
         st.session_state.game = ChessGame()
         st.session_state.history = []
         st.session_state.move_explanation = ""
-        st.session_state.selected_square = None
 
     st.write("#### Last Move Explanation:")
     st.info(st.session_state.move_explanation)
